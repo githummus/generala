@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anotador de Generala</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .emoji-flag {
+            font-family: 'Noto Color Emoji', sans-serif;
+            font-size: 1.5em;
+        }
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+        .table-cell-input {
+            @apply w-full h-full p-2 text-center bg-transparent border-none focus:ring-2 focus:ring-indigo-400 focus:bg-indigo-50 rounded-md transition-all duration-200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+        .player-name-input {
+            @apply w-full text-center bg-transparent font-semibold uppercase text-sm p-1 rounded-md focus:ring-2 focus:ring-indigo-400 focus:bg-indigo-100;
+        }
+        .sticky-col { position: sticky; left: 0; z-index: 10; }
+        .sticky-footer { position: sticky; bottom: 0; z-index: 20; }
+        .header-draggable { cursor: grab; }
+        .header-draggable:active { cursor: grabbing; }
+        .dragging { opacity: 0.5; background-color: #e0e7ff; }
+        .drag-over { border-left: 3px solid #4f46e5; }
+        .invalid-input {
+            animation: shake 0.5s;
+            border: 2px solid #ef4444 !important;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        @keyframes trophy-shine {
+            0% { text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 15px #ffd700, 0 0 20px #ffd700; }
+            100% { text-shadow: 0 0 20px #fff, 0 0 30px #ffd700, 0 0 40px #ffd700, 0 0 50px #ffd700; }
+        }
+        .trophy-animation {
+            animation: trophy-shine 1.5s alternate infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-5xl mx-auto bg-white rounded-2xl shadow-lg overflow-hidden">
+        <!-- Navigation -->
+        <nav class="bg-slate-800 text-white flex justify-center">
+            <button id="nav-anotador" class="nav-btn py-3 px-6 font-semibold border-b-4 border-indigo-500">Anotador</button>
+            <button id="nav-reglas" class="nav-btn py-3 px-6 font-semibold border-b-4 border-transparent opacity-70 hover:opacity-100 transition">Reglas</button>
+        </nav>
+
+        <!-- Main Content -->
+        <div id="content-anotador">
+            <div class="p-6 md:p-8 bg-slate-50 border-b border-slate-200">
+                <h1 class="text-3xl md:text-4xl font-bold text-slate-800 text-center">Anotador de Generala</h1>
+                <p class="text-center text-slate-500 mt-2">Edita nombres, arrastra columnas y anota los puntos.</p>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table id="scoresheet" class="w-full text-sm">
+                    <thead class="bg-slate-100"><tr></tr></thead>
+                    <tbody class="divide-y divide-slate-200"></tbody>
+                    <tfoot class="bg-slate-800 text-white"><tr class="sticky-footer"></tr></tfoot>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Leaderboard View -->
+        <!-- Modificación 1: Añadir botón "Nueva Partida" en la vista de leaderboard -->
+        <div id="content-leaderboard" class="hidden">
+             <div class="p-6 md:p-8 bg-gray-800">
+                <h1 class="text-3xl md:text-4xl font-bold text-white text-center">Tabla de Posiciones Final</h1>
+            </div>
+            <div id="leaderboard-container" class="p-4 md:p-8 bg-gray-800">
+                <!-- Leaderboard rows will be injected here -->
+            </div>
+            <div class="p-6 bg-gray-800 border-t border-gray-700 flex justify-center">
+                <button id="new-game-button" class="bg-emerald-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-emerald-700 focus:outline-none focus:ring-4 focus:ring-emerald-300 transition-all duration-300 shadow-md hover:shadow-lg">
+                    Nueva Partida
+                </button>
+            </div>
+        </div>
+
+
+        <div id="footer-controls" class="p-6 bg-slate-50 border-t border-slate-200 flex justify-center gap-4">
+            <button id="finish-button" class="bg-emerald-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-emerald-700 focus:outline-none focus:ring-4 focus:ring-emerald-300 transition-all duration-300 shadow-md hover:shadow-lg">
+                Finalizar Juego
+            </button>
+            <button id="reset-button" class="bg-red-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-red-700 focus:outline-none focus:ring-4 focus:ring-red-300 transition-all duration-300 shadow-md hover:shadow-lg">
+                Reiniciar Juego
+            </button>
+        </div>
+
+        <div id="content-reglas" class="p-6 md:p-8 hidden prose max-w-none">
+            <h2 class="text-2xl font-bold text-slate-800">Reglas de la Generala</h2>
+            <p>El objetivo es lograr la mayor puntuación posible completando las categorías de la tabla.</p>
+            <ul>
+                <li><strong>Juegos de Números (1-6):</strong> Se anota la suma de los dados del número correspondiente. Ej: tres 5s = 15 puntos.</li>
+                <li><strong>Bono:</strong> Si la suma de los 6 juegos de números es 63 o más, se obtienen 30 puntos extra.</li>
+                <li><strong>Full:</strong> Un trío y un par. Vale 35 puntos (armado) o 40 (de mano).</li>
+                <li><strong>Escalera Chica:</strong> 1-2-3-4-5 o 2-3-4-5-6. Vale 35 puntos (armada) o 40 (de mano).</li>
+                <li><strong>Escalera Grande:</strong> 1-3-4-5-6. Vale 40 puntos (armada) o 45 (de mano).</li>
+                <li><strong>3 Iguales:</strong> Tres dados con el mismo número. Se anota la suma de los cinco dados.</li>
+                <li><strong>4 Iguales:</strong> Cuatro dados con el mismo número. Se anota la suma de los cinco dados.</li>
+                <li><strong>Generala:</strong> Cinco dados iguales. Vale 50 puntos. Se puede tachar (anotar 0) si no se tiene una Generala y se necesita descartar un tiro.</li>
+                <li><strong>Generala (2) / Doble:</strong> Se anota si se logra una segunda Generala.</li>
+            </ul>
+        </div>
+    </div>
+    
+    <!-- Winner Animation Overlay -->
+    <div id="winner-overlay" class="hidden fixed inset-0 bg-black bg-opacity-75 z-50 flex flex-col items-center justify-center text-white">
+        <div id="winner-trophy" class="text-9xl trophy-animation">🏆</div>
+        <h2 id="winner-text" class="text-4xl font-bold mt-4"></h2>
+    </div>
+
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // --- STATE & CONFIG ---
+        let playerData = [];
+        let numPlayers = 3;
+        const maxPlayers = 5;
+        const playerHeaderColors = ['bg-sky-200', 'bg-emerald-200', 'bg-amber-200', 'bg-rose-200', 'bg-violet-200'];
+        
+        const diceSVG = [
+            `<svg class="w-8 h-8 mx-auto" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="2"></circle></svg>`,
+            `<svg class="w-8 h-8 mx-auto" viewBox="0 0 24 24" fill="currentColor"><circle cx="8" cy="8" r="1.75"></circle><circle cx="16" cy="16" r="1.75"></circle></svg>`,
+            `<svg class="w-8 h-8 mx-auto" viewBox="0 0 24 24" fill="currentColor"><circle cx="8" cy="8" r="1.75"></circle><circle cx="12" cy="12" r="1.75"></circle><circle cx="16" cy="16" r="1.75"></circle></svg>`,
+            `<svg class="w-8 h-8 mx-auto" viewBox="0 0 24 24" fill="currentColor"><circle cx="8.5" cy="8.5" r="1.75"></circle><circle cx="15.5" cy="8.5" r="1.75"></circle><circle cx="8.5" cy="15.5" r="1.75"></circle><circle cx="15.5" cy="15.5" r="1.75"></circle></svg>`,
+            `<svg class="w-8 h-8 mx-auto" viewBox="0 0 24 24" fill="currentColor"><circle cx="8.5" cy="8.5" r="1.75"></circle><circle cx="15.5" cy="8.5" r="1.75"></circle><circle cx="12" cy="12" r="1.75"></circle><circle cx="8.5" cy="15.5" r="1.75"></circle><circle cx="15.5" cy="15.5" r="1.75"></circle></svg>`,
+            `<svg class="w-8 h-8 mx-auto" viewBox="0 0 24 24" fill="currentColor"><circle cx="8.5" cy="8.5" r="1.75"></circle><circle cx="15.5" cy="8.5" r="1.75"></circle><circle cx="8.5" cy="12" r="1.75"></circle><circle cx="15.5" cy="12" r="1.75"></circle><circle cx="8.5" cy="15.5" r="1.75"></circle><circle cx="15.5" cy="15.5" r="1.75"></circle></svg>`
+        ];
+        
+        const countryFlags = ["🇦🇷", "🇧🇴", "🇧🇷", "🇨🇱", "🇨🇴", "🇪🇨", "🇬🇫", "🇬🇾", "🇵🇾", "🇵🇪", "🇸🇷", "🇺🇾", "🇻🇪", "🇲🇽", "🇨🇦", "🇺🇸", "🇪🇸", "🇵🇹", "🇫🇷", "🇮🇹", "🇩🇪", "🇬🇧", "🇯🇵", "🇨🇳", "🇰🇷", "🇦🇺"];
+
+        const categories = [
+            { name: diceSVG[0], type: 'number', max: 5 },
+            { name: diceSVG[1], type: 'number', max: 10 },
+            { name: diceSVG[2], type: 'number', max: 15 },
+            { name: diceSVG[3], type: 'number', max: 20 },
+            { name: diceSVG[4], type: 'number', max: 25 },
+            { name: diceSVG[5], type: 'number', max: 30 },
+            { name: 'Full', type: 'restricted', validScores: [35, 40] },
+            { name: 'Escalera Chica', type: 'restricted', validScores: [35, 40] },
+            { name: 'Escalera Grande', type: 'restricted', validScores: [40, 45] },
+            { name: '3 Iguales', type: 'number' },
+            { name: '4 Iguales', type: 'number' },
+            { name: 'Chomps', type: 'number' },
+            { name: 'Generala', type: 'number' },
+            { name: 'Generala (2)', type: 'number' },
+            { name: 'Cortesía', type: 'number' },
+        ];
+
+        const theadRow = document.querySelector('#scoresheet thead tr');
+        const tbody = document.querySelector('#scoresheet tbody');
+        const tfootRow = document.querySelector('#scoresheet tfoot tr');
+        const resetButton = document.getElementById('reset-button');
+        const finishButton = document.getElementById('finish-button');
+        const navAnotador = document.getElementById('nav-anotador');
+        const navReglas = document.getElementById('nav-reglas');
+        const contentAnotador = document.getElementById('content-anotador');
+        const contentReglas = document.getElementById('content-reglas');
+        const contentLeaderboard = document.getElementById('content-leaderboard');
+        const leaderboardContainer = document.getElementById('leaderboard-container');
+        const winnerOverlay = document.getElementById('winner-overlay');
+        const winnerText = document.getElementById('winner-text');
+        const footerControls = document.getElementById('footer-controls');
+        
+        // --- FUNCTION DEFINITIONS ---
+
+        function calculateTotal(playerIndex) {
+            let numberSum = 0;
+            let otherScores = 0;
+            
+            playerData[playerIndex].scores.forEach((score, catIndex) => {
+                const value = Number(score) || 0;
+                if (catIndex < 6) {
+                    numberSum += value;
+                } else {
+                    otherScores += value;
+                }
+            });
+
+            const bonus = numberSum >= 63 ? 30 : 0;
+            const total = numberSum + otherScores + bonus;
+            
+            playerData[playerIndex].total = total;
+
+            document.getElementById(`subtotal-${playerIndex}`).textContent = numberSum;
+            document.getElementById(`bonus-${playerIndex}`).textContent = bonus;
+            document.getElementById(`total-${playerIndex}`).textContent = total;
+        }
+        
+        function recalculateAllTotals() {
+            playerData.forEach((_, index) => calculateTotal(index));
+        }
+
+        function showLeaderboard() {
+            contentAnotador.classList.add('hidden');
+            contentLeaderboard.classList.remove('hidden');
+            footerControls.classList.add('hidden');
+            
+            const usedFlags = new Set();
+            playerData.forEach(player => {
+                let randomFlag;
+                do {
+                    randomFlag = countryFlags[Math.floor(Math.random() * countryFlags.length)];
+                } while (usedFlags.has(randomFlag));
+                player.flag = randomFlag;
+                usedFlags.add(randomFlag);
+            });
+
+            playerData.sort((a, b) => b.total - a.total);
+            
+            leaderboardContainer.innerHTML = playerData.map((player, index) => `
+                <div class="flex items-center bg-blue-900 bg-opacity-50 border-b-2 border-blue-500 p-3 rounded-lg mb-2 text-white text-lg">
+                    <div class="w-12 text-center font-bold text-xl">${index + 1}</div>
+                    <div class="w-16 text-center text-3xl emoji-flag">${player.flag}</div>
+                    <div class="flex-1 font-semibold uppercase tracking-wider">${player.name}</div>
+                    <div class="w-24 text-right font-bold text-xl">${player.total}</div>
+                </div>
+            `).join('');
+            document.getElementById('new-game-button').addEventListener('click', resetGame);
+        }
+
+        function endGameSequence() {
+            const maxScore = Math.max(...playerData.map(p => p.total));
+            const winners = playerData.filter(p => p.total === maxScore);
+            
+            if (winners.length > 1) {
+                winnerText.textContent = `¡Es un empate!`;
+            } else {
+                winnerText.textContent = `¡El ganador es ${winners[0].name}!`;
+            }
+
+            winnerOverlay.classList.remove('hidden');
+            
+            var end = Date.now() + (3 * 1000);
+            (function frame() {
+              confetti({ particleCount: 2, angle: 60, spread: 55, origin: { x: 0 } });
+              confetti({ particleCount: 2, angle: 120, spread: 55, origin: { x: 1 } });
+              if (Date.now() < end) { requestAnimationFrame(frame); }
+            }());
+
+            setTimeout(() => {
+                winnerOverlay.classList.add('hidden');
+                showLeaderboard();
+            }, 3000);
+        }
+
+        function checkGameEnd() {
+            const isGameFinished = playerData.every(p => p.scores.every(s => s !== ''));
+            if (isGameFinished) {
+                endGameSequence();
+            }
+        }
+
+        function handleScoreChange(e) {
+            const input = e.target;
+            input.classList.remove('invalid-input');
+            const playerIndex = parseInt(input.dataset.playerIndex, 10);
+            const catIndex = parseInt(input.dataset.catIndex, 10);
+            const category = categories[catIndex];
+            let value = input.value;
+
+            if (category.type === 'number' && category.max) {
+                if (Number(value) > category.max) {
+                    value = category.max;
+                    input.value = value;
+                }
+            } else if (category.type === 'restricted') {
+                const numValue = Number(value);
+                if (value !== '' && !category.validScores.includes(numValue)) {
+                    input.classList.add('invalid-input');
+                    setTimeout(() => {
+                        input.classList.remove('invalid-input');
+                        input.value = '';
+                    }, 600);
+                    value = '';
+                }
+            }
+            
+            playerData[playerIndex].scores[catIndex] = value;
+            calculateTotal(playerIndex);
+            checkGameEnd();
+        }
+        
+        function handleNameChange(e) {
+            const playerIndex = parseInt(e.target.dataset.playerIndex, 10);
+            playerData[playerIndex].name = e.target.value;
+        }
+
+        function addPlayer() {
+            if (numPlayers < maxPlayers) {
+                numPlayers++;
+                playerData.push({ name: `Jugador ${numPlayers}`, scores: Array(categories.length).fill(''), total: 0, flag: '' });
+                drawTable();
+            }
+        }
+
+        function resetGame() {
+            numPlayers = 3;
+            initializeState();
+            drawTable();
+            contentAnotador.classList.remove('hidden');
+            contentLeaderboard.classList.add('hidden');
+            footerControls.classList.remove('hidden');
+            switchView('anotador');
+        }
+        
+        function switchView(view) {
+            contentAnotador.classList.toggle('hidden', view !== 'anotador');
+            contentReglas.classList.toggle('hidden', view !== 'reglas');
+            contentLeaderboard.classList.add('hidden');
+            footerControls.classList.toggle('hidden', view === 'reglas' || !contentAnotador.classList.contains('hidden'));
+
+            navAnotador.classList.toggle('border-indigo-500', view === 'anotador');
+            navAnotador.classList.toggle('border-transparent', view !== 'anotador');
+            navAnotador.classList.toggle('opacity-70', view !== 'anotador');
+            navReglas.classList.toggle('border-indigo-500', view === 'reglas');
+            navReglas.classList.toggle('border-transparent', view !== 'reglas');
+            navReglas.classList.toggle('opacity-70', view !== 'reglas');
+        }
+
+        let draggedColIndex = null;
+        function handleDragStart(e) { draggedColIndex = parseInt(e.target.dataset.colIndex, 10); e.target.classList.add('dragging'); }
+        function handleDragOver(e) { e.preventDefault(); const target = e.target.closest('.header-draggable'); if (target) { document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over')); target.classList.add('drag-over'); } }
+        function handleDrop(e) {
+            e.preventDefault();
+            const target = e.target.closest('.header-draggable');
+            if (target && draggedColIndex !== null) {
+                const targetColIndex = parseInt(target.dataset.colIndex, 10);
+                const [draggedItem] = playerData.splice(draggedColIndex, 1);
+                playerData.splice(targetColIndex, 0, draggedItem);
+                drawTable();
+            }
+        }
+        function handleDragEnd() { document.querySelectorAll('.dragging, .drag-over').forEach(el => el.classList.remove('dragging', 'drag-over')); draggedColIndex = null; }
+
+        function attachAllEventListeners() {
+            const addPlayerBtn = document.getElementById('add-player-btn');
+            if (addPlayerBtn) addPlayerBtn.addEventListener('click', addPlayer);
+
+            document.querySelectorAll('.score-input').forEach(input => input.addEventListener('change', handleScoreChange));
+            document.querySelectorAll('.player-name-input').forEach(input => input.addEventListener('change', handleNameChange));
+            
+            document.querySelectorAll('.header-draggable').forEach(header => {
+                header.addEventListener('dragstart', handleDragStart);
+                header.addEventListener('dragover', handleDragOver);
+                header.addEventListener('drop', handleDrop);
+                header.addEventListener('dragend', handleDragEnd);
+                header.addEventListener('dragleave', () => header.classList.remove('drag-over'));
+            });
+        }
+        
+        function drawTable() {
+            theadRow.innerHTML = '';
+            tbody.innerHTML = '';
+            tfootRow.innerHTML = '';
+
+            // Header
+            theadRow.innerHTML += `<th class="p-3 text-sm font-semibold tracking-wider text-left text-gray-600 uppercase sticky-col bg-slate-100">Jugada</th>`;
+            playerData.forEach((player, index) => {
+                const th = document.createElement('th');
+                th.className = `p-1 text-center ${playerHeaderColors[index % playerHeaderColors.length]} header-draggable`;
+                th.setAttribute('draggable', 'true');
+                th.setAttribute('data-col-index', index);
+                th.innerHTML = `<input type="text" class="player-name-input" value="${player.name}" data-player-index="${index}">`;
+                theadRow.appendChild(th);
+            });
+            if (numPlayers < maxPlayers) {
+                theadRow.innerHTML += `<th class="p-1 align-middle text-center"><button id="add-player-btn" title="Añadir jugador" class="w-8 h-8 bg-indigo-500 text-white rounded-full hover:bg-indigo-600 transition-all flex items-center justify-center text-xl font-bold">+</button></th>`;
+            } else {
+                theadRow.innerHTML += `<th class="p-1"></th>`;
+            }
+
+            // Body
+            categories.forEach((category, catIndex) => {
+                const row = document.createElement('tr');
+                row.className = 'bg-white';
+
+                const categoryCell = document.createElement('td');
+                categoryCell.className = 'p-3 font-medium text-gray-700 sticky-col h-14 bg-white align-middle';
+                categoryCell.innerHTML = category.name;
+                row.appendChild(categoryCell);
+
+                playerData.forEach((player, playerIndex) => {
+                    const cell = document.createElement('td');
+                    cell.className = 'p-0 text-center text-gray-800 align-middle';
+                    cell.innerHTML = `<input type="number" class="table-cell-input score-input" data-player-index="${playerIndex}" data-cat-index="${catIndex}" placeholder="-" value="${player.scores[catIndex]}">`;
+                    row.appendChild(cell);
+                });
+                tbody.appendChild(row);
+
+                if (catIndex === 5) { // After dice categories
+                    const subtotalRow = document.createElement('tr');
+                    subtotalRow.className = 'bg-slate-200 font-semibold text-slate-700';
+                    subtotalRow.innerHTML = `<td class="p-3 sticky-col bg-slate-200">TOTAL</td>`;
+                    playerData.forEach((_, i) => { subtotalRow.innerHTML += `<td id="subtotal-${i}" class="p-3 text-center">0</td>`; });
+                    tbody.appendChild(subtotalRow);
+
+                    const bonusRow = document.createElement('tr');
+                    bonusRow.className = 'bg-slate-200 font-semibold text-slate-700';
+                    bonusRow.innerHTML = `<td class="p-3 sticky-col bg-slate-200">BONO (+30)</td>`;
+                    playerData.forEach((_, i) => { bonusRow.innerHTML += `<td id="bonus-${i}" class="p-3 text-center text-indigo-600 font-bold">0</td>`; });
+                    tbody.appendChild(bonusRow);
+                }
+            });
+
+            // Footer
+            tfootRow.innerHTML = `<td class="p-4 text-lg font-bold sticky-col bg-slate-800">TOTAL</td>`;
+            playerData.forEach((_, i) => { tfootRow.innerHTML += `<td id="total-${i}" class="p-4 text-lg font-bold text-center">0</td>`; });
+            if (numPlayers < maxPlayers) tfootRow.innerHTML += `<td></td>`;
+
+            attachAllEventListeners();
+            recalculateAllTotals();
+        }
+        
+        function initializeState() {
+            playerData = [];
+            for (let i = 0; i < numPlayers; i++) {
+                playerData.push({
+                    name: `Jugador ${i + 1}`,
+                    scores: Array(categories.length).fill(''),
+                    total: 0,
+                    flag: ''
+                });
+            }
+        }
+
+        // --- INITIAL RUN ---
+        resetButton.addEventListener('click', resetGame);
+        finishButton.addEventListener('click', endGameSequence);
+        navAnotador.addEventListener('click', () => switchView('anotador'));
+        navReglas.addEventListener('click', () => switchView('reglas'));
+        document.getElementById('new-game-button').addEventListener('click', resetGame); // Añadir esta línea
+
+        initializeState();
+        drawTable();
+    });
+    </script>
+</body>
+</html>
