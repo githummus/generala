@@ -328,7 +328,7 @@
             contentAnotador.classList.toggle('hidden', view !== 'anotador');
             contentReglas.classList.toggle('hidden', view !== 'reglas');
             contentLeaderboard.classList.add('hidden');
-            footerControls.classList.toggle('hidden', view === 'reglas' || !contentAnotador.classList.contains('hidden'));
+            footerControls.classList.toggle('hidden', view === 'reglas' || view === 'leaderboard');
 
             navAnotador.classList.toggle('border-indigo-500', view === 'anotador');
             navAnotador.classList.toggle('border-transparent', view !== 'anotador');
